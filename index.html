@@ -1,0 +1,341 @@
+#include <iostream>
+
+#include <string>
+
+#include <map>
+
+#include <vector>
+
+#include <fstream>
+
+#include <boost/asio.hpp>
+
+#include <boost/asio/ssl.hpp>
+
+#include <random>
+
+#include <ctime>
+
+
+
+// Utilisation des namespaces
+
+using namespace std;
+
+using namespace boost::asio;
+
+using boost::asio::ip::tcp;
+
+
+
+// Fonction pour générer des ID aléatoires
+
+string generateRandomID(int length) {
+
+    const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    random_device rd;
+
+    mt19937 generator(rd());
+
+    uniform_int_distribution<> dist(0, chars.size() - 1);
+
+
+
+    string randomID;
+
+    for (int i = 0; i < length; ++i) {
+
+        randomID += chars[dist(generator)];
+
+    }
+
+    return randomID;
+
+}
+
+
+
+// Gestion des utilisateurs
+
+class User {
+
+public:
+
+    string id;
+
+    string publicKey;
+
+    string privateKey;
+
+
+
+    User(string pubKey, string privKey) {
+
+        id = generateRandomID(12);
+
+        publicKey = pubKey;
+
+        privateKey = privKey;
+
+    }
+
+};
+
+
+
+// Classe pour gérer les utilisateurs et leurs transactions
+
+class DecentralizedSystem {
+
+private:
+
+    map<string, User> users;              // Liste des utilisateurs (ID -> User)
+
+    vector<string> transactions;          // Liste des transactions
+
+
+
+public:
+
+    void createUser(string publicKey, string privateKey) {
+
+        User user(publicKey, privateKey);
+
+        users[user.id] = user;
+
+        cout << "Utilisateur créé avec succès : ID = " << user.id << endl;
+
+    }
+
+
+
+    void addTransaction(string fromID, string toID, double amount) {
+
+        if (users.find(fromID) != users.end() && users.find(toID) != users.end()) {
+
+            string transaction = "De " + fromID + " à " + toID + " : " + to_string(amount) + " BTC";
+
+            transactions.push_back(transaction);
+
+            cout << "Transaction ajoutée : " << transaction << endl;
+
+        } else {
+
+            cout << "Erreur : Utilisateur introuvable." << endl;
+
+        }
+
+    }
+
+
+
+    void viewTransactions() {
+
+        cout << "Historique des transactions :\n";
+
+        for (const string& tx : transactions) {
+
+            cout << tx << endl;
+
+        }
+
+    }
+
+
+
+    void clearLogs() {
+
+        transactions.clear();
+
+        cout << "Historique des transactions supprimé pour garantir l'anonymat.\n";
+
+    }
+
+};
+
+
+
+// Serveur SSL sécurisé
+
+void handle_client(boost::asio::ssl::stream<tcp::socket>& socket, DecentralizedSystem& system) {
+
+    try {
+
+        socket.handshake(boost::asio::ssl::stream_base::server);
+
+
+
+        // Exemple : Lecture des données envoyées par le client
+
+        char data[1024];
+
+        boost::asio::read(socket, boost::asio::buffer(data, 1024));
+
+        cout << "Données reçues : " << data << endl;
+
+
+
+        // Exemple : Ajouter une transaction
+
+        system.addTransaction("randomFromID", "randomToID", 0.5);
+
+
+
+        string response = "Bienvenue sur le serveur sécurisé décentralisé.";
+
+        boost::asio::write(socket, boost::asio::buffer(response));
+
+    } catch (const exception& e) {
+
+        cerr << "Erreur client : " << e.what() << endl;
+
+    }
+
+}
+
+
+
+void startServer(DecentralizedSystem& system) {
+
+    try {
+
+        io_context io;
+
+        ssl::context ctx(ssl::context::tlsv12);
+
+
+
+        // Charger les certificats SSL
+
+        ctx.use_certificate_chain_file("cert.pem");
+
+        ctx.use_private_key_file("key.pem", ssl::context::pem);
+
+
+
+        tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), 443));
+
+
+
+        cout << "Serveur en écoute sur le port 443...\n";
+
+        while (true) {
+
+            tcp::socket socket(io);
+
+            acceptor.accept(socket);
+
+
+
+            ssl::stream<tcp::socket> ssl_socket(move(socket), ctx);
+
+            handle_client(ssl_socket, system);
+
+        }
+
+    } catch (const exception& e) {
+
+        cerr << "Erreur serveur : " << e.what() << endl;
+
+    }
+
+}
+
+
+
+// Simulation de nœuds décentralisés
+
+void simulateNode() {
+
+    cout << "Noeud décentralisé activé...\n";
+
+    this_thread::sleep_for(chrono::seconds(2));
+
+    cout << "Noeud synchronisé avec le réseau.\n";
+
+}
+
+
+
+void simulateDecentralizedNetwork(int nodeCount) {
+
+    cout << "Démarrage du réseau décentralisé avec " << nodeCount << " nœuds...\n";
+
+    vector<thread> nodes;
+
+
+
+    for (int i = 0; i < nodeCount; ++i) {
+
+        nodes.emplace_back(simulateNode);
+
+    }
+
+
+
+    for (auto& node : nodes) {
+
+        node.join();
+
+    }
+
+    cout << "Tous les nœuds sont en ligne.\n";
+
+}
+
+
+
+// Point d'entrée principal
+
+int main() {
+
+    DecentralizedSystem system;
+
+
+
+    // Simuler la création de quelques utilisateurs
+
+    system.createUser("publicKey1", "privateKey1");
+
+    system.createUser("publicKey2", "privateKey2");
+
+
+
+    // Ajouter une transaction d'exemple
+
+    system.addTransaction("randomFromID", "randomToID", 1.25);
+
+
+
+    // Visualiser les transactions
+
+    system.viewTransactions();
+
+
+
+    // Simuler un réseau décentralisé
+
+    simulateDecentralizedNetwork(5);
+
+
+
+    // Lancer le serveur sécurisé
+
+    thread serverThread(startServer, ref(system));
+
+
+
+    // Supprimer les logs après une opération
+
+    system.clearLogs();
+
+
+
+    serverThread.join();
+
+
+
+    return 0;
+
+}
